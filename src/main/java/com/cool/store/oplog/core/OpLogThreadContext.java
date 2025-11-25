@@ -1,6 +1,7 @@
 package com.cool.store.oplog.core;
 
-import java.util.HashMap;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.Map;
 
 /**
@@ -11,20 +12,10 @@ import java.util.Map;
  * @author wangff
  * @since 2025/11/25
  */
+@Slf4j
 public class OpLogThreadContext extends OpLogContext {
 
-    public static void putEmptySpan() {
-        variableMapStack.get().push(new HashMap<>());
-    }
-
-    /**
-     * pop一个线程变量Map
-     */
-    public static void clear() {
-        variableMapStack.get().pop();
-    }
-
     public static Map<String, Object> getVariables() {
-        return variableMapStack.get().peek();
+        return variableMapStack.get();
     }
 }

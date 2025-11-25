@@ -1,8 +1,10 @@
 package com.cool.store.oplog.core;
 
+import lombok.Synchronized;
+
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Stack;
+import java.util.Objects;
 
 /**
  * <p>
@@ -13,18 +15,24 @@ import java.util.Stack;
  * @since 2025/11/21
  */
 public class OpLogContext {
-    protected static final InheritableThreadLocal<Stack<Map<String, Object>>> variableMapStack;
+    protected static final InheritableThreadLocal<Map<String, Object>> variableMapStack = new InheritableThreadLocal<>();
 
-    static {
-        variableMapStack = new InheritableThreadLocal<>();
-        variableMapStack.set(new Stack<>());
-    }
 
+    @Synchronized
     public static void putVariable(String key, Object value) {
-        variableMapStack.get().peek().put(key, value);
+        Map<String, Object> map = variableMapStack.get();
+        if (Objects.isNull(map)) {
+            map = new HashMap<>();
+            variableMapStack.set(map);
+        }
+        map.put(key, value);
     }
 
     public static Object getVariable(String key) {
-        return variableMapStack.get().peek().get(key);
+        Map<String, Object> map = variableMapStack.get();
+        if (Objects.isNull(map)) {
+            return null;
+        }
+        return map.get(key);
     }
 }

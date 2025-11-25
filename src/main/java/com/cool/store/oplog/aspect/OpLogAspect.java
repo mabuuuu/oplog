@@ -1,12 +1,11 @@
 package com.cool.store.oplog.aspect;
 
+import com.alibaba.fastjson.JSONObject;
 import com.cool.store.oplog.annotation.OpLog;
 import com.cool.store.oplog.core.*;
 import com.cool.store.oplog.service.IFunctionService;
 import com.cool.store.oplog.service.IOpLogRecordService;
 import com.cool.store.oplog.service.IOperatorGetService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -57,7 +56,6 @@ public class OpLogAspect {
 
     @Around(value = "@annotation(opLog)")
     public Object opLogAdvice(ProceedingJoinPoint joinPoint, OpLog opLog) throws Throwable {
-        log.info("进入操作日志增强");
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
         return execute(joinPoint, joinPoint.getTarget(), method, joinPoint.getArgs(), opLog);
@@ -72,7 +70,6 @@ public class OpLogAspect {
         boolean condition = true;
 
         try {
-            OpLogThreadContext.putEmptySpan();
             evaluationContext = opLogValueParser.createEvaluationContext(method, args, target, ret, methodExecuteResult.getErrorMsg());
             if (StringUtils.isNotBlank(opLog.condition())) {
                 condition = opLogValueParser.parseExpressionCondition(opLog.condition(), method, target, evaluationContext);
@@ -98,26 +95,8 @@ public class OpLogAspect {
             methodExecuteResult = new MethodExecuteResult(false, e, e.getMessage());
         }
 
-        try {
-            if (methodExecuteResult.isSuccess() && condition) {
-                if (Objects.nonNull(evaluationContext)) {
-                    // 代理方法执行后，添加返回值和错误信息和自定义变量
-                    evaluationContext.addRet(ret, methodExecuteResult.getErrorMsg()).addVariables();
-                }
-                // 处理后置自定义函数
-                if (CollectionUtils.isNotEmpty(customMethods)) {
-                    logContent = processExecuteFunctionTemplate(customMethods, logContent, method, target, evaluationContext, false);
-                }
-                // 处理其他字段
-                logContent = processExecuteParamTemplate(logContent, method, target, evaluationContext);
-                // 日志处理
-                OpLogRecord record = createRecord(joinPoint, opLog, logContent, ret);
-                opLogRecordService.record(record);
-            }
-        } catch (Exception e) {
-            log.error("操作日志解析失败", e);
-        } finally {
-            OpLogThreadContext.clear();
+        if (methodExecuteResult.isSuccess() && condition) {
+            executeAfter(joinPoint, target, method, opLog, logContent, evaluationContext, methodExecuteResult, ret, customMethods);
         }
 
         if (methodExecuteResult.getThrowable() != null) {
@@ -126,15 +105,41 @@ public class OpLogAspect {
         return ret;
     }
 
-    private OpLogRecord createRecord(JoinPoint joinPoint, OpLog opLog, String logContent, Object ret) throws JsonProcessingException {
-        // 获取RequestAttributes
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        // 从获取RequestAttributes中获取HttpServletRequest的信息
-        HttpServletRequest request = (HttpServletRequest) requestAttributes
+    private void executeAfter(ProceedingJoinPoint joinPoint, Object target, Method method, OpLog opLog, String logContent,
+                              OpLogEvaluationContext evaluationContext, MethodExecuteResult methodExecuteResult, Object ret, List<CustomMethodParams> customMethods) {
+        HttpServletRequest request = (HttpServletRequest) RequestContextHolder.getRequestAttributes()
                 .resolveReference(RequestAttributes.REFERENCE_REQUEST);
+        new JSONObject().toJSONString();
+        String reqParams = covertMapStr(joinPoint);
+        String respParams = JSONObject.toJSONString(ret);
+        Thread logThread = new Thread(() -> {
+            try {
+                String localLogContent = logContent;
+                if (Objects.nonNull(evaluationContext)) {
+                    // 代理方法执行后，添加返回值和错误信息和自定义变量
+                    evaluationContext.addRet(ret, methodExecuteResult.getErrorMsg()).addVariables();
+                }
+                // 处理后置自定义函数
+                if (CollectionUtils.isNotEmpty(customMethods)) {
+                    localLogContent = processExecuteFunctionTemplate(customMethods, localLogContent, method, target, evaluationContext, false);
+                }
+                // 处理其他字段
+                localLogContent = processExecuteParamTemplate(localLogContent, method, target, evaluationContext);
+                // 日志处理
+                OpLogRecord record = createRecord(opLog, localLogContent, request, reqParams, respParams);
+                opLogRecordService.record(record);
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                log.error("操作日志解析失败", e);
+            }
+        });
+        logThread.setDaemon(true);
+        logThread.start();
+    }
+
+    private OpLogRecord createRecord(OpLog opLog, String logContent, HttpServletRequest request, String reqParams, String respParams) {
         // 操作人
         SysLogOperator user = operatorGetService.getUser();
-        ObjectMapper mapper = new ObjectMapper();
         return OpLogRecord.builder()
                 .userId(user.getUserId())
                 .userName(user.getUserName())
@@ -145,16 +150,16 @@ public class OpLogAspect {
                 .content(logContent)
                 .ip(getIpAddress(request))
                 .deviceInfo(getUserAgent(request))
-                .reqParams(mapper.writeValueAsString(covertMap(joinPoint)))
-                .respParams(mapper.writeValueAsString(ret))
+                .reqParams(reqParams)
+                .respParams(respParams)
                 .url(request.getRequestURI())
                 .build();
     }
 
-    public Map<String, Object> covertMap(JoinPoint joinPoint) {
+    public String covertMapStr(JoinPoint joinPoint) {
         Object[] args = joinPoint.getArgs();
         String[] paramNames = ((CodeSignature) joinPoint.getSignature()).getParameterNames();
-        Map<String, Object> rtnMap = new HashMap<>();
+        JSONObject rtnMap = new JSONObject();
         for (int i = 0; i < paramNames.length; i++) {
             Object arg = args[i];
             if (Objects.isNull(arg) || arg instanceof MultipartFile || arg instanceof HttpServletRequest || arg instanceof HttpServletResponse) {
@@ -162,7 +167,7 @@ public class OpLogAspect {
             }
             rtnMap.put(paramNames[i], args[i]);
         }
-        return rtnMap;
+        return rtnMap.toJSONString();
     }
 
     public String getUserAgent(HttpServletRequest request) {
