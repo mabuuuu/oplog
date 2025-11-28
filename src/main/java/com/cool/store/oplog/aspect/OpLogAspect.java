@@ -17,6 +17,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.CodeSignature;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.slf4j.MDC;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.stereotype.Component;
@@ -112,8 +113,15 @@ public class OpLogAspect {
         new JSONObject().toJSONString();
         String reqParams = covertMapStr(joinPoint);
         String respParams = JSONObject.toJSONString(ret);
+        Map<String, String> mdcContext = new HashMap<>();
+        try {
+            mdcContext = MDC.getCopyOfContextMap();
+        } catch (Exception ignored) {
+        }
+        Map<String, String> finalMdcContext = mdcContext;
         Thread logThread = new Thread(() -> {
             try {
+                MDC.setContextMap(finalMdcContext);
                 String localLogContent = logContent;
                 if (Objects.nonNull(evaluationContext)) {
                     // 代理方法执行后，添加返回值和错误信息和自定义变量
