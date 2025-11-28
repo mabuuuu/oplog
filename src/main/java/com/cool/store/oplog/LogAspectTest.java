@@ -34,8 +34,8 @@ import java.util.Arrays;
 @SpringBootTest(classes = {LogAspectTest.TestConfig.class})
 class LogAspectTest {
 
-    @Configuration
-    @EnableAspectJAutoProxy
+//    @Configuration
+//    @EnableAspectJAutoProxy
     static class TestConfig {
         // 注册你的切面
         @Bean

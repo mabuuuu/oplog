@@ -43,7 +43,7 @@ import java.util.regex.Pattern;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "oplog.enable", havingValue = "true")
+@ConditionalOnProperty(name = "oplog.enable", havingValue = "true", matchIfMissing = true)
 public class OpLogAspect {
     private final OpLogValueParser opLogValueParser;
     private final IFunctionService functionService;
