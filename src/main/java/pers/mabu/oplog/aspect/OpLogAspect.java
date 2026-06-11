@@ -77,43 +77,46 @@ public class OpLogAspect {
         boolean condition = true;
 
         try {
-            evaluationContext = opLogValueParser.createEvaluationContext(method, args, target, ret, methodExecuteResult.getErrorMsg());
-            if (StringUtils.isNotBlank(opLog.condition())) {
-                condition = opLogValueParser.parseExpressionCondition(opLog.condition(), method, target, evaluationContext);
-            }
-        } catch (Exception e) {
-            log.error("操作日志条件表达式解析失败", e);
-        }
-        if (condition) {
             try {
-                customMethods = OpLogRegular.getMethod(opLog.success());
-                // 处理前置自定义函数
-                if (CollectionUtils.isNotEmpty(customMethods)) {
-                    logContent = processExecuteFunctionTemplate(customMethods, logContent, method, target, evaluationContext, true);
+                evaluationContext = opLogValueParser.createEvaluationContext(method, args, target, ret, methodExecuteResult.getErrorMsg());
+                if (StringUtils.isNotBlank(opLog.condition())) {
+                    condition = opLogValueParser.parseExpressionCondition(opLog.condition(), method, target, evaluationContext);
                 }
             } catch (Exception e) {
-                log.error("操作日志前置自定义函数解析失败", e);
+                log.error("操作日志条件表达式解析失败", e);
             }
-        }
+            if (condition) {
+                try {
+                    customMethods = OpLogRegular.getMethod(opLog.success());
+                    if (CollectionUtils.isNotEmpty(customMethods)) {
+                        logContent = processExecuteFunctionTemplate(customMethods, logContent, method, target, evaluationContext, true);
+                    }
+                } catch (Exception e) {
+                    log.error("操作日志前置自定义函数解析失败", e);
+                }
+            }
 
-        try {
-            ret = joinPoint.proceed();
-        } catch (Exception e) {
-            methodExecuteResult = new MethodExecuteResult(false, e, e.getMessage());
-        }
-
-        if (methodExecuteResult.isSuccess() && condition) {
             try {
-                executeAfter(joinPoint, target, method, opLog, logContent, evaluationContext, methodExecuteResult, ret, customMethods);
+                ret = joinPoint.proceed();
             } catch (Exception e) {
-                log.error("操作日志后置自定义函数解析失败", e);
+                methodExecuteResult = new MethodExecuteResult(false, e, e.getMessage());
             }
-        }
 
-        if (methodExecuteResult.getThrowable() != null) {
-            throw methodExecuteResult.getThrowable();
+            if (methodExecuteResult.isSuccess() && condition) {
+                try {
+                    executeAfter(joinPoint, target, method, opLog, logContent, evaluationContext, methodExecuteResult, ret, customMethods);
+                } catch (Exception e) {
+                    log.error("操作日志后置自定义函数解析失败", e);
+                }
+            }
+
+            if (methodExecuteResult.getThrowable() != null) {
+                throw methodExecuteResult.getThrowable();
+            }
+            return ret;
+        } finally {
+            OpLogContext.clear();
         }
-        return ret;
     }
 
     private void executeAfter(ProceedingJoinPoint joinPoint, Object target, Method method, OpLog opLog, String logContent,
@@ -137,7 +140,9 @@ public class OpLogAspect {
         Object finalRequest = request;
         executor.execute(() -> {
             try {
-                MDC.setContextMap(finalMdcContext);
+                if (finalMdcContext != null) {
+                    MDC.setContextMap(finalMdcContext);
+                }
                 String localLogContent = logContent;
                 if (Objects.nonNull(evaluationContext)) {
                     evaluationContext.addRet(ret, methodExecuteResult.getErrorMsg()).addVariables();
