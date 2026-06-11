@@ -76,6 +76,7 @@ public class OpLogAspect {
         String logContent = opLog.success();
         boolean condition = true;
 
+        OpLogContext.initLevel();
         try {
             try {
                 evaluationContext = opLogValueParser.createEvaluationContext(method, args, target, ret, methodExecuteResult.getErrorMsg());
@@ -155,8 +156,6 @@ public class OpLogAspect {
                 opLogRecordService.record(record);
             } catch (Exception e) {
                 log.error("操作日志解析失败", e);
-            } finally {
-                OpLogContext.clear();
             }
         });
     }
