@@ -86,7 +86,7 @@ public class OpLogAspect {
                     logContent = processExecuteFunctionTemplate(customMethods, logContent, method, target, evaluationContext, true);
                 }
             } catch (Exception e) {
-                log.error("操作日志前置自定义函数解析失败");
+                log.error("操作日志前置自定义函数解析失败", e);
             }
         }
 
@@ -97,7 +97,11 @@ public class OpLogAspect {
         }
 
         if (methodExecuteResult.isSuccess() && condition) {
-            executeAfter(joinPoint, target, method, opLog, logContent, evaluationContext, methodExecuteResult, ret, customMethods);
+            try {
+                executeAfter(joinPoint, target, method, opLog, logContent, evaluationContext, methodExecuteResult, ret, customMethods);
+            } catch (Exception e) {
+                log.error("操作日志后置自定义函数解析失败", e);
+            }
         }
 
         if (methodExecuteResult.getThrowable() != null) {
@@ -108,17 +112,24 @@ public class OpLogAspect {
 
     private void executeAfter(ProceedingJoinPoint joinPoint, Object target, Method method, OpLog opLog, String logContent,
                               OpLogEvaluationContext evaluationContext, MethodExecuteResult methodExecuteResult, Object ret, List<CustomMethodParams> customMethods) {
-        HttpServletRequest request = (HttpServletRequest) RequestContextHolder.getRequestAttributes()
-                .resolveReference(RequestAttributes.REFERENCE_REQUEST);
-        new JSONObject().toJSONString();
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = null;
+        if (Objects.nonNull(requestAttributes)) {
+            request = (HttpServletRequest) requestAttributes
+                    .resolveReference(RequestAttributes.REFERENCE_REQUEST);
+        } else {
+            log.info("非web上下文，request为空");
+        }
         String reqParams = covertMapStr(joinPoint);
         String respParams = JSONObject.toJSONString(ret);
         Map<String, String> mdcContext = new HashMap<>();
         try {
             mdcContext = MDC.getCopyOfContextMap();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.error("MDC上下文获取异常", e);
         }
         Map<String, String> finalMdcContext = mdcContext;
+        HttpServletRequest finalRequest = request;
         Thread logThread = new Thread(() -> {
             try {
                 MDC.setContextMap(finalMdcContext);
@@ -134,9 +145,8 @@ public class OpLogAspect {
                 // 处理其他字段
                 localLogContent = processExecuteParamTemplate(localLogContent, method, target, evaluationContext);
                 // 日志处理
-                OpLogRecord record = createRecord(opLog, localLogContent, request, reqParams, respParams);
+                OpLogRecord record = createRecord(opLog, localLogContent, finalRequest, reqParams, respParams);
                 opLogRecordService.record(record);
-                Thread.sleep(1000);
             } catch (Exception e) {
                 log.error("操作日志解析失败", e);
             }

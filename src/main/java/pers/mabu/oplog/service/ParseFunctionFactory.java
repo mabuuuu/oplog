@@ -16,13 +16,12 @@ import java.util.Map;
  * @since 2025/11/24
  */
 public class ParseFunctionFactory {
-    private Map<String, IParseFunction> allFunctionMap;
+    private final Map<String, IParseFunction> allFunctionMap = new HashMap<>();
 
     public ParseFunctionFactory(List<IParseFunction> parseFunctions) {
         if (CollectionUtils.isEmpty(parseFunctions)) {
             return;
         }
-        allFunctionMap = new HashMap<>();
         for (IParseFunction parseFunction : parseFunctions) {
             if (StringUtils.isEmpty(parseFunction.functionName())) {
                 continue;
