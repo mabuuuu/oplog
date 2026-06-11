@@ -1,8 +1,9 @@
 package pers.mabu.oplog.core;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * <p>
@@ -12,7 +13,8 @@ import lombok.NoArgsConstructor;
  * @author wangff
  * @since 2025/11/21
  */
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class MethodExecuteResult {

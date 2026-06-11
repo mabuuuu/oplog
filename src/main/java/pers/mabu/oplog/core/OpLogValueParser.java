@@ -15,7 +15,7 @@ import java.util.Objects;
  * @since 2025/11/24
  */
 public class OpLogValueParser {
-    private OpLogExpressionEvaluator expressionEvaluator;
+    private final OpLogExpressionEvaluator expressionEvaluator;
 
     public OpLogValueParser(OpLogExpressionEvaluator expressionEvaluator) {
         this.expressionEvaluator = expressionEvaluator;
@@ -31,7 +31,7 @@ public class OpLogValueParser {
     }
 
     public Boolean parseExpressionCondition(String conditionExpression, Method method, Object target, EvaluationContext evaluationContext) {
-        return (Boolean) expressionEvaluator.parseExpression(conditionExpression, new AnnotatedElementKey(method, target.getClass()), evaluationContext);
+        return Boolean.TRUE.equals(expressionEvaluator.parseExpression(conditionExpression, new AnnotatedElementKey(method, target.getClass()), evaluationContext));
     }
 
     public OpLogEvaluationContext createEvaluationContext(Method method, Object[] args, Object target, Object ret, String errorMsg) {

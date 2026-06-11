@@ -21,7 +21,7 @@ public class OpLogEvaluationContext extends MethodBasedEvaluationContext {
         //把方法的参数都放到 SpEL 解析的 RootObject 中
         super(rootObject, method, arguments, parameterNameDiscoverer);
         //把 LogRecordContext 中的变量都放到 RootObject 中
-        Map<String, Object> variables = OpLogThreadContext.getVariables();
+        Map<String, Object> variables = OpLogContext.getVariables();
         if (variables != null && !variables.isEmpty()) {
             for (Map.Entry<String, Object> entry : variables.entrySet()) {
                 setVariable(entry.getKey(), entry.getValue());
@@ -39,7 +39,7 @@ public class OpLogEvaluationContext extends MethodBasedEvaluationContext {
     }
 
     public OpLogEvaluationContext addVariables() {
-        Map<String, Object> variables = OpLogThreadContext.getVariables();
+        Map<String, Object> variables = OpLogContext.getVariables();
         if (variables != null && !variables.isEmpty()) {
             for (Map.Entry<String, Object> entry : variables.entrySet()) {
                 setVariable(entry.getKey(), entry.getValue());

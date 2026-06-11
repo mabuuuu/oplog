@@ -1,6 +1,6 @@
 package pers.mabu.oplog.core;
 
-import lombok.Synchronized;
+import com.alibaba.ttl.TransmittableThreadLocal;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,10 +15,8 @@ import java.util.Objects;
  * @since 2025/11/21
  */
 public class OpLogContext {
-    protected static final InheritableThreadLocal<Map<String, Object>> variableMapStack = new InheritableThreadLocal<>();
+    protected static final TransmittableThreadLocal<Map<String, Object>> variableMapStack = new TransmittableThreadLocal<>();
 
-
-    @Synchronized
     public static void putVariable(String key, Object value) {
         Map<String, Object> map = variableMapStack.get();
         if (Objects.isNull(map)) {
@@ -34,5 +32,16 @@ public class OpLogContext {
             return null;
         }
         return map.get(key);
+    }
+
+    /**
+     * 清理当前线程的变量，防止线程池场景下的内存泄漏
+     */
+    public static void clear() {
+        variableMapStack.remove();
+    }
+
+    public static Map<String, Object> getVariables() {
+        return variableMapStack.get();
     }
 }
