@@ -12,7 +12,7 @@
 
     <artifactId>oplog</artifactId>
     <groupId>pers.mabu</groupId>
-    <version>1.0.3</version>
+    <version>1.0.5</version>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -73,6 +73,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
