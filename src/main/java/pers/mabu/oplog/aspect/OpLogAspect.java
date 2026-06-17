@@ -20,9 +20,7 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.CodeSignature;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.MDC;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.expression.EvaluationContext;
-import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,10 +41,8 @@ import java.util.regex.Pattern;
  * @since 2025/11/21
  */
 @Aspect
-@Component
 @Slf4j
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "oplog.enable", havingValue = "true", matchIfMissing = true)
 public class OpLogAspect {
     private final OpLogValueParser opLogValueParser;
     private final IFunctionService functionService;
@@ -137,6 +133,7 @@ public class OpLogAspect {
         } catch (Exception e) {
             log.error("MDC上下文获取异常", e);
         }
+        SysLogOperator user = operatorGetService.getUser();
         Map<String, String> finalMdcContext = mdcContext;
         Object finalRequest = request;
         executor.execute(() -> {
@@ -152,7 +149,7 @@ public class OpLogAspect {
                     localLogContent = processExecuteFunctionTemplate(customMethods, localLogContent, method, target, evaluationContext, false);
                 }
                 localLogContent = processExecuteParamTemplate(localLogContent, method, target, evaluationContext);
-                OpLogRecord record = createRecord(opLog, localLogContent, finalRequest, reqParams, respParams);
+                OpLogRecord record = createRecord(opLog, localLogContent, finalRequest, reqParams, respParams, user);
                 opLogRecordService.record(record);
             } catch (Exception e) {
                 log.error("操作日志解析失败", e);
@@ -160,13 +157,9 @@ public class OpLogAspect {
         });
     }
 
-    private OpLogRecord createRecord(OpLog opLog, String logContent, Object request, String reqParams, String respParams) {
+    private OpLogRecord createRecord(OpLog opLog, String logContent, Object request, String reqParams, String respParams, SysLogOperator user) {
         // 操作人
-        SysLogOperator user = operatorGetService.getUser();
-        return OpLogRecord.builder()
-                .userId(user.getUserId())
-                .userName(user.getUserName())
-                .userExtendInfo(user.getExtendInfo())
+        OpLogRecord.OpLogRecordBuilder builder = OpLogRecord.builder()
                 .module(opLog.module())
                 .category(opLog.category())
                 .opTime(LocalDateTime.now())
@@ -175,8 +168,13 @@ public class OpLogAspect {
                 .deviceInfo(getUserAgent(request))
                 .reqParams(reqParams)
                 .respParams(respParams)
-                .url(getRequestURI(request))
-                .build();
+                .url(getRequestURI(request));
+        if (Objects.nonNull(user)) {
+            builder.userId(user.getUserId())
+                    .userName(user.getUserName())
+                    .userExtendInfo(user.getExtendInfo());
+        }
+        return builder.build();
     }
 
     public String covertMapStr(JoinPoint joinPoint) {

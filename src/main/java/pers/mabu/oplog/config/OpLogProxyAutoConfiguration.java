@@ -1,5 +1,9 @@
 package pers.mabu.oplog.config;
 
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import pers.mabu.oplog.aspect.OpLogAspect;
+import pers.mabu.oplog.core.MdcTaskExecutor;
 import pers.mabu.oplog.core.OpLogExpressionEvaluator;
 import pers.mabu.oplog.core.OpLogValueParser;
 import pers.mabu.oplog.service.*;
@@ -17,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
 
 import java.util.List;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * <p>
@@ -70,5 +75,30 @@ public class OpLogProxyAutoConfiguration {
     @Role(BeanDefinition.ROLE_APPLICATION)
     public IOpLogRecordService recordService() {
         return new DefaultOpLogRecordServiceImpl();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(OpLogAspect.class)
+    public OpLogAspect opLogAspect(OpLogValueParser opLogValueParser,
+                                   IFunctionService functionService,
+                                   IOperatorGetService operatorGetService,
+                                   IOpLogRecordService opLogRecordService,
+                                   TaskExecutor opLogTaskExecutor) {
+        return new OpLogAspect(opLogValueParser, functionService, operatorGetService, opLogRecordService, opLogTaskExecutor);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "opLogTaskExecutor")
+    public TaskExecutor opLogTaskExecutor() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        ThreadPoolTaskExecutor executor = new MdcTaskExecutor();
+        executor.setCorePoolSize(cores * 2);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(10000);
+        executor.setThreadNamePrefix("opLogThreadPool_");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setKeepAliveSeconds(60);
+        executor.initialize();
+        return executor;
     }
 }

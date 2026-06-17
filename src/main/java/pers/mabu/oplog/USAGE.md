@@ -144,3 +144,62 @@ public boolean updateAmount(Long orderId, BigDecimal newAmount) {
 ```
 
 执行后日志内容：`订单1001金额从[199.00]变更为[299.00]，操作结果:true`
+
+---
+
+## 自定义操作人 `IOperatorGetService`
+
+默认实现返回固定值 `defaultUserId` / `defaultUserName`，生产环境需替换为真实用户信息：
+
+```java
+@Component
+public class CurrentUserOperatorService implements IOperatorGetService {
+
+    @Override
+    public SysLogOperator getUser() {
+        LoginUser user = SecurityUtils.getCurrentUser();
+        return new SysLogOperator(
+            String.valueOf(user.getId()),   // userId
+            user.getName(),                 // userName
+            user.getDeptName()              // extendInfo
+        );
+    }
+}
+```
+
+注册为 Spring Bean 后自动生效，`OpLogRecord` 中的 `userId`、`userName`、`userExtendInfo` 字段将取自返回值。
+
+---
+
+## 自定义日志存储 `IOpLogRecordService`
+
+默认实现仅打印日志到控制台，生产环境需替换为数据库存储：
+
+```java
+@Component
+public class DbOpLogRecordService implements IOpLogRecordService {
+
+    @Resource
+    private OpLogMapper opLogMapper;
+
+    @Override
+    public void record(OpLogRecord opLogRecord) {
+        opLogMapper.insert(opLogRecord);
+    }
+}
+```
+
+`OpLogRecord` 包含的关键字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `userId` | String | 操作人 ID |
+| `userName` | String | 操作人姓名 |
+| `module` | String | 模块 |
+| `category` | String | 分类 |
+| `opTime` | LocalDateTime | 操作时间 |
+| `content` | String | 日志内容（模板解析结果） |
+| `ip` | String | 操作 IP |
+| `url` | String | 请求路径 |
+| `reqParams` | String | 请求参数 JSON |
+| `respParams` | String | 响应结果 JSON |
