@@ -13,6 +13,7 @@ import pers.mabu.oplog.service.impl.DefaultOperatorGetServiceImpl;
 import pers.mabu.oplog.service.impl.DefaultParseFunction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -83,7 +84,7 @@ public class OpLogProxyAutoConfiguration {
                                    IFunctionService functionService,
                                    IOperatorGetService operatorGetService,
                                    IOpLogRecordService opLogRecordService,
-                                   TaskExecutor opLogTaskExecutor) {
+                                   @Qualifier("opLogTaskExecutor") TaskExecutor opLogTaskExecutor) {
         return new OpLogAspect(opLogValueParser, functionService, operatorGetService, opLogRecordService, opLogTaskExecutor);
     }
 
