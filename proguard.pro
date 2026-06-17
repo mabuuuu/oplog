@@ -103,9 +103,27 @@
     public <init>(...);
 }
 
-# ---- Level 3: 以下类全部混淆（无保留规则）----
+# ---- Level 3: 默认实现（保留公共方法，用户可能查阅和继承）----
+
+-keep public class pers.mabu.oplog.service.impl.DefaultFunctionServiceImpl {
+    public <methods>;
+    public <init>(...);
+}
+-keep public class pers.mabu.oplog.service.impl.DefaultOpLogRecordServiceImpl {
+    public <methods>;
+    public <init>(...);
+}
+-keep public class pers.mabu.oplog.service.impl.DefaultOperatorGetServiceImpl {
+    public <methods>;
+    public <init>(...);
+}
+-keep public class pers.mabu.oplog.service.impl.DefaultParseFunction {
+    public <methods>;
+    public <init>(...);
+}
+
+# ---- Level 4: 以下内部工具类全部混淆（无保留规则）----
 #   pers.mabu.oplog.core.MethodExecuteResult
 #   pers.mabu.oplog.core.CustomMethodParams
 #   pers.mabu.oplog.core.CustomParams
 #   pers.mabu.oplog.core.OpLogRegular
-#   pers.mabu.oplog.service.impl.*  (默认实现，可通过接口替换)
